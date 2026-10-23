@@ -25,7 +25,7 @@ $DistRoot = Join-Path $PSScriptRoot "dist"
 $BuildRoot = Join-Path $PSScriptRoot "build"
 $ReleaseRoot = Join-Path $PSScriptRoot "release"
 $PackageRoot = Join-Path $BuildRoot "release-package"
-$AppName = "우리 반 진도"
+$AppExecutableName = "진도위젯(클릭)"
 if ($LASTEXITCODE -ne 0 -or -not $AppName) {
     throw "update_config.py의 APP_FOLDER_NAME을 확인해 주세요."
 }
@@ -52,14 +52,14 @@ if (Test-Path -LiteralPath $PackageRoot) {
     --workpath (Join-Path $BuildRoot "app") `
     --specpath (Join-Path $BuildRoot "app-spec") app.py
 if ($LASTEXITCODE -ne 0) { throw "앱 빌드에 실패했어요." }
-
+Rename-Item -LiteralPath (Join-Path $AppBundle "$AppName.exe") -NewName "$AppExecutableName.exe"
 & $PythonExe -m PyInstaller --noconfirm --clean --onefile --windowed `
     --name "UsagiJindoUpdater" --distpath $DistRoot `
     --workpath (Join-Path $BuildRoot "updater") `
     --specpath (Join-Path $BuildRoot "updater-spec") updater.py
 if ($LASTEXITCODE -ne 0) { throw "업데이트 도우미 빌드에 실패했어요." }
 
-if (-not (Test-Path -LiteralPath (Join-Path $AppBundle "$AppName.exe"))) {
+if (-not (Test-Path -LiteralPath (Join-Path $AppBundle "$AppExecutableName.exe"))) {
     throw "빌드된 앱 실행 파일을 찾지 못했어요."
 }
 if (-not (Test-Path -LiteralPath $UpdaterOutput)) {
