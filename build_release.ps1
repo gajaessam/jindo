@@ -25,7 +25,7 @@ $DistRoot = Join-Path $PSScriptRoot "dist"
 $BuildRoot = Join-Path $PSScriptRoot "build"
 $ReleaseRoot = Join-Path $PSScriptRoot "release"
 $PackageRoot = Join-Path $BuildRoot "release-package"
-$AppName = (& $PythonExe -c "from update_config import APP_FOLDER_NAME; print(APP_FOLDER_NAME)").Trim()
+$AppName = "우리 반 진도"
 if ($LASTEXITCODE -ne 0 -or -not $AppName) {
     throw "update_config.py의 APP_FOLDER_NAME을 확인해 주세요."
 }
