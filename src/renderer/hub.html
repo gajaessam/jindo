@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>진도 위젯 설정</title>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="panel.css">
+<style>
+  body { height: 100vh; }
+  .win.panel { flex: 1 1 auto; min-height: 0; }
+  .win.panel > .hub { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 14px; flex: 1 1 auto; min-height: 0; }
+  .nav { display: grid; align-content: start; gap: 6px; }
+  .nav button { text-align: left; font-size: 14px; font-weight: 700; padding: 10px 12px; border-radius: 12px; border: 1.5px solid transparent; background: transparent; color: var(--sub); cursor: pointer; }
+  .nav button:hover { background: var(--soft); color: var(--text); }
+  .nav button[aria-selected="true"] { background: var(--surface); border-color: var(--accent); color: var(--text); }
+  .content { overflow-y: auto; min-height: 0; padding: 2px 4px 2px 2px; display: grid; align-content: start; gap: 12px; }
+  .content > section[hidden] { display: none !important; }
+  section { display: grid; gap: 12px; align-content: start; }
+  .lead { margin: 0; color: var(--sub); font-size: 13px; line-height: 1.55; }
+
+  /* 반 · 학년 */
+  .grade { background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; padding: 12px; display: grid; gap: 10px; }
+  .grade.drop { border-color: var(--accent); background: var(--soft); }
+  .grade-head { display: flex; align-items: center; gap: 8px; }
+  .grade-head .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .grade-head b { font-size: 15px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grade-head .count { font-size: 12.5px; color: var(--sub); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--bg); color: var(--text); font-weight: 700; font-size: 13.5px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.dragging { opacity: 0.4; }
+  .chip .th { width: 28px; height: 28px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; overflow: hidden; color: var(--sub); font-size: 15px; flex: none; }
+  .chip .th img { max-width: 26px; max-height: 26px; object-fit: contain; }
+  .chip.add { padding: 6px 14px; border-style: dashed; color: var(--sub); font-weight: 600; }
+  .add-grade { border: 1.5px dashed var(--line); border-radius: 14px; padding: 12px; text-align: center; background: transparent; color: var(--sub); font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; }
+  .add-grade:hover { border-color: var(--accent); color: var(--text); }
+
+  /* 수업 계획 (차시·활동) */
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab { display: inline-flex; align-items: center; gap: 7px; max-width: 200px; font-size: 13.5px; font-weight: 700; padding: 7px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--sub); cursor: pointer; }
+  .tab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .tab[aria-selected="true"] { border-color: var(--accent); color: var(--text); background: var(--soft); }
+  .lessons { display: grid; gap: 12px; position: relative; padding: 6px 0; }
+  .handle { flex: none; width: 22px; height: 30px; display: grid; place-items: center; color: #C9AE9C; font-size: 16px; cursor: grab; border-radius: 8px; user-select: none; touch-action: none; }
+  .handle:hover { background: var(--soft); color: var(--accent); }
+  body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
+  .dragging { opacity: 0.45; }
+  .lesson.dragging { outline: 2px dashed var(--accent); outline-offset: 2px; }
+  .drop-line { position: absolute; height: 4px; border-radius: 4px; background: var(--accent); pointer-events: none; z-index: 5; }
+  .lesson { background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; padding: 10px 10px 12px; display: grid; gap: 8px; }
+  .lesson-head { display: flex; align-items: center; gap: 6px; }
+  .badge { flex: none; font-size: 12px; font-weight: 800; color: var(--accent); background: var(--soft); border-radius: 8px; padding: 4px 8px; }
+  .lesson-head input { font-weight: 700; }
+  .items { display: grid; gap: 6px; padding-left: 8px; }
+  .item { display: flex; align-items: center; gap: 4px; }
+  .item input { padding: 7px 10px; font-size: 13.5px; }
+  .tools .icon-btn { width: 30px; height: 30px; font-size: 14px; }
+  .tools .del:hover { color: var(--danger); }
+  .add-item { justify-self: start; margin-left: 8px; border-style: dashed; color: var(--sub); }
+  .add-lesson { border-style: dashed; color: var(--sub); width: 100%; }
+  .none { font-size: 13px; color: var(--sub); padding: 2px 0 2px 8px; }
+
+  /* 기타 */
+  .backup-list { display: grid; gap: 6px; max-height: 220px; overflow-y: auto; }
+  .entry { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: center; text-align: left; width: 100%; background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 10px; cursor: pointer; color: var(--text); }
+  .entry[aria-checked="true"] { border-color: var(--accent); background: var(--soft); }
+  .entry .rd { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); }
+  .entry[aria-checked="true"] .rd { border: 5px solid var(--accent); }
+  .entry .when { font-weight: 700; font-size: 13.5px; }
+  .entry .tagx { font-size: 11px; font-weight: 700; color: var(--accent); margin-left: 6px; }
+  .entry .info { font-size: 12.5px; color: var(--sub); }
+  .about { font-size: 13.5px; line-height: 1.7; }
+  .sec-title { margin: 6px 2px -4px; font-size: 13px; font-weight: 800; color: var(--sub); letter-spacing: 0.02em; }
+  .now { font-size: 11.5px; font-weight: 700; color: var(--accent); background: var(--soft); border-radius: 8px; padding: 2px 7px; margin-left: 6px; }
+
+  /* 작은 창 (반 고치기, 학년 추가 등) */
+  .modal-back { position: fixed; inset: 0; background: rgba(74, 51, 40, 0.28); display: grid; place-items: center; z-index: 50; border-radius: 22px; }
+  .modal { width: min(380px, 90%); background: var(--bg); border-radius: 18px; padding: 16px; display: grid; gap: 12px; box-shadow: 0 12px 30px var(--shadow); }
+  .modal h3 { margin: 0; font-size: 16px; }
+  .modal label.f { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: var(--sub); }
+  .modal select { font: inherit; font-size: 14px; color: var(--text); background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 10px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .checks label { display: inline-flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; color: var(--text); }
+  .checks input { accent-color: var(--accent); margin: 0; }
+  .checks i { width: 8px; height: 8px; border-radius: 50%; }
+  .img-row { display: flex; align-items: center; gap: 10px; }
+  .img-row .big { width: 56px; height: 56px; border-radius: 14px; background: var(--soft); display: grid; place-items: center; overflow: hidden; color: var(--sub); font-size: 24px; }
+  .img-row .big img { max-width: 52px; max-height: 52px; object-fit: contain; }
+  .modal .row-end { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .btn.danger-ghost { background: transparent; border-color: transparent; color: var(--danger); }
+</style>
+</head>
+<body>
+  <div class="win panel" role="dialog" aria-labelledby="title">
+    <div class="win-head"><h2 id="title">진도 위젯 설정</h2><button class="icon-btn" id="x" aria-label="닫기">✕</button></div>
+    <div class="hub">
+      <nav class="nav" role="tablist" aria-label="설정">
+        <button role="tab" data-tab="classes" id="tab-classes">반 · 학년</button>
+        <button role="tab" data-tab="plan" id="tab-plan">수업 계획</button>
+        <button role="tab" data-tab="widget" id="tab-widget">위젯</button>
+      </nav>
+      <div class="content" id="content">
+        <section id="sec-classes" role="tabpanel" aria-labelledby="tab-classes"></section>
+        <section id="sec-plan" role="tabpanel" aria-labelledby="tab-plan" hidden></section>
+        <section id="sec-widget" role="tabpanel" aria-labelledby="tab-widget" hidden></section>
+      </div>
+    </div>
+    <div class="foot-btns">
+      <span class="hint" id="hint">바꾸는 동안 바탕 화면에 미리 보여요. "저장"을 눌러야 확정돼요.</span>
+      <div class="right">
+        <button class="btn ghost" id="close">닫기</button>
+        <button class="btn primary" id="save">저장</button>
+      </div>
+    </div>
+  </div>
+  <script src="panel-common.js"></script>
+  <script src="hub.js"></script>
+</body>
+</html>

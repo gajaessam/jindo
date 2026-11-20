@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>진도 위젯 트랙</title>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="track.css">
+</head>
+<body>
+  <div id="lane"></div>
+  <div id="charHint" hidden><span></span><b>알겠어요</b></div>
+  <div id="updateHint" hidden><span></span><b data-act="open">보기</b><i data-act="close" title="이 버전 알림 닫기">✕</i></div>
+  <div id="flagHint" hidden><span>깃발을 누르면 학년별로 바꿔 볼 수 있어요 👇</span><b>알겠어요</b></div>
+  <div id="planLabel" hidden></div>
+  <div id="flag" aria-hidden="true">
+    <svg width="36" height="62" viewBox="0 0 36 62">
+      <defs>
+        <clipPath id="flagCloth"><path d="M7 8 C14 4.5 21 11 32 7.5 V24.5 C21 28 14 21.5 7 25 Z"/></clipPath>
+      </defs>
+      <!-- 깃대와 살구색 꼭지 -->
+      <rect x="3.5" y="6" width="3.5" height="56" rx="1.75" fill="#6B5446"/>
+      <circle cx="5.25" cy="4.5" r="3.6" fill="#FF8B6B"/>
+      <circle cx="4.3" cy="3.5" r="1.1" fill="#FFD3C4"/>
+      <!-- 펄럭이는 체크무늬 천 (흰색·갈색, 아이콘과 같은 색) -->
+      <g clip-path="url(#flagCloth)">
+        <rect x="7" y="3" width="26" height="26" fill="#FFFFFF"/>
+        <g fill="#4A3328">
+          <rect x="7" y="3" width="6.5" height="6.5"/><rect x="20" y="3" width="6.5" height="6.5"/>
+          <rect x="13.5" y="9.5" width="6.5" height="6.5"/><rect x="26.5" y="9.5" width="6.5" height="6.5"/>
+          <rect x="7" y="16" width="6.5" height="6.5"/><rect x="20" y="16" width="6.5" height="6.5"/>
+          <rect x="13.5" y="22.5" width="6.5" height="6.5"/><rect x="26.5" y="22.5" width="6.5" height="6.5"/>
+        </g>
+      </g>
+      <path d="M7 8 C14 4.5 21 11 32 7.5 V24.5 C21 28 14 21.5 7 25 Z" fill="none" stroke="#4A3328" stroke-width="1" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <script src="../shared/race-layout.js"></script>
+  <script src="track.js"></script>
+</body>
+</html>
