@@ -60,7 +60,9 @@ function createProgressWindow(app) {
   }
 
   // 말풍선 위치: 캐릭터 바로 위, 꼬리가 캐릭터를 가리키도록
+  let lastHeight = 480;
   function place(height) {
+    lastHeight = height;
     const wa = screen.getDisplayNearestPoint({ x: Math.round(anchor.centerX), y: Math.round(anchor.bottom) }).workArea;
     const h = Math.max(200, Math.min(Math.round(height), Math.floor(anchor.bottom - wa.y)));
     let x = Math.round(anchor.centerX - WIDTH / 2);
@@ -110,6 +112,13 @@ function createProgressWindow(app) {
     if (!isOpen()) create();
     else refresh();
     if (shown) win.focus();
+  }
+
+  // 깃발로 학년을 바꿔 캐릭터 자리가 달라졌을 때: 창을 새 자리로 옮김
+  function move(idx, rect) {
+    if (!isOpen() || idx !== classIdx || !shown) return;
+    anchor = { bottom: rect.y - 2, centerX: rect.x + rect.width / 2 };
+    place(lastHeight);
   }
 
   function close() {
@@ -177,7 +186,7 @@ function createProgressWindow(app) {
     }
   });
 
-  return { open, close, refresh, sendStatus, isOpen, get classIdx() { return classIdx; }, get window() { return win; } };
+  return { open, move, close, refresh, sendStatus, isOpen, get classIdx() { return classIdx; }, get window() { return win; } };
 }
 
 module.exports = { createProgressWindow };

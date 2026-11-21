@@ -72,4 +72,9 @@ function popupMenu({ items, heading, point }) {
   });
 }
 
-module.exports = { popupMenu };
+// 열려 있는 메뉴 닫기 (바탕 화면 위젯은 눌러도 포커스를 가져가지 않아서, 메뉴가 스스로 닫히지 않음)
+function closeMenu() {
+  if (current) finish(null);
+}
+
+module.exports = { popupMenu, closeMenu };

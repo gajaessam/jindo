@@ -432,6 +432,14 @@ function rectOnScreen(ch) {
   return { x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
 }
 
+// 학년을 바꾼 뒤 진도창을 옮길 자리: 캐릭터가 새 자리에 그려진 다음에 알려 줌
+api.onRectRequest((idx) => {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const ch = chars[idx];
+    if (ch && ch.visible !== false && ch.x !== null) api.sendRect(idx, rectOnScreen(ch));
+  }));
+});
+
 document.addEventListener('mousemove', (e) => {
   if (press) {
     const { ch } = press;
@@ -462,6 +470,7 @@ document.addEventListener('mouseleave', () => {
 
 document.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return;
+  api.press(); // 떠 있는 우클릭 메뉴 닫기
   const ch = hitTest(e.clientX, e.clientY);
   if (!ch) {
     flagPressed = hitFlag(e.clientX, e.clientY);

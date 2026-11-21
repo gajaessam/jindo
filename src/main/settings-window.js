@@ -55,6 +55,8 @@ function createSettingsWindow(app) {
     }
     const win = openPanel(KEY, { file: 'hub.html', width: 800, title: '진도 위젯 설정' });
     if (!win) return;
+    // 진도창은 닫음: 설정 창이 열려 있는 동안 바탕 화면은 미리 보기라서, 진도창과 내용이 달라 헷갈림
+    if (ctx.progress && ctx.progress.isOpen()) ctx.progress.close();
     draft = draftFromData(ctx.data);
     openedPlans = cloneData(ctx.data.plans);
     knownImages = new Set(ctx.data.classes.map((c) => c.custom_image).filter(Boolean));

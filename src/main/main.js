@@ -10,7 +10,7 @@ const { createUpdater } = require('./updater');
 
 const native = require('./native');
 const dialogs = require('./dialogs');
-const { popupMenu } = require('./popup-menu');
+const { popupMenu, closeMenu } = require('./popup-menu');
 const { createProgressWindow } = require('./progress-window');
 const { createSettingsWindow } = require('./settings-window');
 const { Store, defaultDataDir } = require('../core/storage');
@@ -145,6 +145,11 @@ function placeTrack() {
   const bounds = { x: wa.x, y: wa.y + wa.height - TRACK_HEIGHT, width: wa.width, height: TRACK_HEIGHT };
   win.setBounds(bounds);
   native.sendToBottom(win);
+  // 화면 크기·작업 표시줄이 바뀌면 열린 진도창도 캐릭터 위로 다시 맞춤
+  if (ctx.progress && ctx.progress.isOpen()) {
+    const idx = ctx.progress.classIdx;
+    setTimeout(() => { if (ctx.track && !ctx.track.isDestroyed()) ctx.track.webContents.send('track:rect-request', idx); }, 300);
+  }
 }
 
 function createTrack() {
@@ -198,6 +203,9 @@ ipcMain.handle('track:image', async (_e, idx) => {
     return { ok: false };
   }
 });
+
+// 위젯(캐릭터·깃발·말풍선)을 왼쪽 클릭하면 열려 있던 우클릭 메뉴는 닫음
+ipcMain.on('track:press', () => closeMenu());
 
 ipcMain.on('track:interactive', (_e, on) => {
   if (ctx.track && !ctx.track.isDestroyed()) ctx.track.setIgnoreMouseEvents(!on, { forward: true });
@@ -286,15 +294,28 @@ ipcMain.on('track:context', async () => {
   }
 });
 
-ipcMain.on('track:pick-image', (_e, idx) => chooseImage(idx));
+// 설정 창이 열려 있으면 바탕 화면은 미리 보기라서, 그림 고르기도 설정 창에서
+ipcMain.on('track:pick-image', (_e, idx) => { if (!settingsBusy()) chooseImage(idx); });
 
 // 깃발을 누르면 보는 계획(학년) 바꾸기: 1학년 → 2학년 → … → 전체 → 1학년
 ipcMain.on('track:flag', () => {
   const d = ctx.data;
   if (d.plans.length < 2) return;
+  if (settingsBusy()) return; // 설정 창에서 학년을 고치는 중에는 미리 보기와 헷갈리지 않게
   const order = [...d.plans.map((p) => p.id), VIEW_ALL];
   const next = order[(order.indexOf(d.view_plan) + 1) % order.length];
   commit(() => { d.view_plan = next; d.flag_hint_seen = true; });
+  // 진도창이 열려 있으면: 그 반이 안 보이게 되면 닫고, 계속 보이면 캐릭터 새 자리로 옮김
+  const p = ctx.progress;
+  if (p && p.isOpen()) {
+    const cls = d.classes[p.classIdx];
+    if (!cls || (next !== VIEW_ALL && cls.plan_id !== next)) p.close();
+    else if (ctx.track && !ctx.track.isDestroyed()) ctx.track.webContents.send('track:rect-request', p.classIdx);
+  }
+});
+
+ipcMain.on('track:rect', (_e, idx, rect) => {
+  if (ctx.progress && ctx.track && rect) ctx.progress.move(idx, toScreenRect(rect));
 });
 
 // 처음 한 번 뜨는 깃발 안내를 닫음 (다시 안 뜨게 저장)
