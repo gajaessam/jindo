@@ -4,7 +4,8 @@
 // 위젯 탭의 자동 실행·업데이트 확인·백업 복원은 누르는 즉시 동작합니다.
 
 const fs = require('fs');
-const { app: electronApp, ipcMain, dialog } = require('electron');
+const { app: electronApp, ipcMain, dialog, screen } = require('electron');
+const { describeDisplays } = require('../core/display-pick');
 const { openPanel, getPanel } = require('./panel');
 const dialogs = require('./dialogs');
 const autostart = require('./autostart');
@@ -72,6 +73,16 @@ function createSettingsWindow(app) {
     if (win) win.close();
   }
 
+  function displayList() {
+    return describeDisplays(screen.getAllDisplays(), screen.getPrimaryDisplay().id);
+  }
+
+  // 설정 창이 열려 있는 동안 모니터를 꽂거나 빼면 목록을 새로
+  function displaysChanged() {
+    const win = getPanel(KEY);
+    if (win) win.webContents.send('settings:displays', displayList());
+  }
+
   ipcMain.handle('settings:init', async (event) => {
     if (!fromWin(event) || !draft) return null;
     return {
@@ -82,6 +93,7 @@ function createSettingsWindow(app) {
       maxPlans: MAX_PLANS,
       maxClasses: MAX_CLASSES,
       version: electronApp.getVersion(),
+      displays: displayList(),
       autostart: { supported: autostart.supported(), on: await autostart.isEnabled().catch(() => false) },
     };
   });
@@ -105,6 +117,7 @@ function createSettingsWindow(app) {
       scale: next.scale,
       float: Boolean(next.float),
       labels: Boolean(next.labels),
+      monitor: next.monitor && typeof next.monitor === 'object' ? next.monitor : null,
     };
     app.pushTrack();
     return true;
@@ -251,7 +264,7 @@ function createSettingsWindow(app) {
     return true;
   });
 
-  return { open, close, isOpen };
+  return { open, close, isOpen, displaysChanged };
 }
 
 module.exports = { createSettingsWindow };

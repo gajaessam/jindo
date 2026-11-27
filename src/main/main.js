@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { app, BrowserWindow, ipcMain, screen, dialog, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, dialog, globalShortcut, shell, Tray } = require('electron');
 const autostart = require('./autostart');
 const { createUpdater } = require('./updater');
 
@@ -16,6 +16,7 @@ const { createSettingsWindow } = require('./settings-window');
 const { Store, defaultDataDir } = require('../core/storage');
 const { completion, cloneData, planColor, VIEW_ALL } = require('../core/data');
 const { undoPlan } = require('../core/actions');
+const { pickDisplay } = require('../core/display-pick');
 const { SaveScheduler } = require('../core/save-scheduler');
 const { checkImage, MAX_IMAGE_BYTES, sniffImage } = require('../core/image-info');
 
@@ -135,18 +136,29 @@ function trackViewModel() {
 
 function pushTrack() {
   if (ctx.track && !ctx.track.isDestroyed()) ctx.track.webContents.send('track:state', trackViewModel());
+  placeTrack(false); // 설정 창에서 모니터를 바꾸면 바로 옮겨 감 (자리가 같으면 아무것도 안 함)
+}
+
+// 위젯을 띄울 모니터: 설정에서 고른 모니터, 없거나 못 찾으면 주 모니터
+function targetDisplay() {
+  const d = ctx.data ? shownData() : null;
+  return pickDisplay(screen.getAllDisplays(), screen.getPrimaryDisplay().id, d && d.monitor) || screen.getPrimaryDisplay();
 }
 
 // 작업표시줄 바로 위. 작업표시줄이 위·옆에 있거나 자동 숨김이면 화면 맨 아래에 놓입니다.
-function placeTrack() {
+// force: 화면 구성이 바뀐 때처럼 자리가 같아도 다시 맞춤
+function placeTrack(force = true) {
   const win = ctx.track;
   if (!win || win.isDestroyed()) return;
-  const wa = screen.getPrimaryDisplay().workArea;
+  const wa = targetDisplay().workArea;
   const bounds = { x: wa.x, y: wa.y + wa.height - TRACK_HEIGHT, width: wa.width, height: TRACK_HEIGHT };
+  const now = win.getBounds();
+  const moved = now.x !== bounds.x || now.y !== bounds.y || now.width !== bounds.width || now.height !== bounds.height;
+  if (!moved && !force) return;
   win.setBounds(bounds);
   native.sendToBottom(win);
-  // 화면 크기·작업 표시줄이 바뀌면 열린 진도창도 캐릭터 위로 다시 맞춤
-  if (ctx.progress && ctx.progress.isOpen()) {
+  // 화면 크기·작업 표시줄·모니터가 바뀌면 열린 진도창도 캐릭터 위로 다시 맞춤
+  if (moved && ctx.progress && ctx.progress.isOpen()) {
     const idx = ctx.progress.classIdx;
     setTimeout(() => { if (ctx.track && !ctx.track.isDestroyed()) ctx.track.webContents.send('track:rect-request', idx); }, 300);
   }
@@ -270,7 +282,26 @@ function openManual() {
 }
 
 // 우클릭 메뉴: 자주 쓰는 것만. 나머지는 모두 "설정" 창 안에 있음
-ipcMain.on('track:context', async () => {
+// (캐릭터 우클릭과 작업 표시줄 ^ 아이콘 우클릭이 같은 메뉴)
+ipcMain.on('track:context', () => showMainMenu());
+
+// 작업 표시줄 ^ 안의 아이콘: 왼쪽 클릭 → 설정, 오른쪽 클릭 → 메뉴
+let tray = null;
+function createTray() {
+  const assets = path.join(__dirname, '..', '..', 'assets');
+  const icon = fs.existsSync(path.join(assets, 'icon.ico')) ? path.join(assets, 'icon.ico') : path.join(assets, 'icon.png');
+  try {
+    tray = new Tray(icon);
+  } catch {
+    tray = null; // 아이콘을 못 만들어도 위젯은 그대로 동작
+    return;
+  }
+  tray.setToolTip('진도 위젯');
+  tray.on('click', () => ctx.settings.open());
+  tray.on('right-click', () => showMainMenu());
+}
+
+async function showMainMenu() {
   const id = await popupMenu({
     items: [
       { id: 'settings', label: '설정' },
@@ -292,7 +323,7 @@ ipcMain.on('track:context', async () => {
     default:
       break;
   }
-});
+}
 
 // 설정 창이 열려 있으면 바탕 화면은 미리 보기라서, 그림 고르기도 설정 창에서
 ipcMain.on('track:pick-image', (_e, idx) => { if (!settingsBusy()) chooseImage(idx); });
@@ -410,7 +441,10 @@ app.on('before-quit', () => {
     ctx.saver.flush();
   }
 });
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  if (tray) { tray.destroy(); tray = null; } // 끈 뒤 ^ 안에 아이콘이 남지 않게
+});
 app.on('window-all-closed', () => { /* 트랙 창이 없어도 바로 끄지 않음 (quitApp으로만 종료) */ });
 
 async function start() {
@@ -467,10 +501,13 @@ async function start() {
     setInterval(() => ctx.updater.check(false), 6 * 60 * 60 * 1000);
   }
   createTrack();
+  createTray();
 
-  screen.on('display-metrics-changed', placeTrack);
-  screen.on('display-added', placeTrack);
-  screen.on('display-removed', placeTrack);
+  // 모니터를 꽂거나 빼면 다시 자리 잡기 (고른 모니터를 빼면 주 모니터로, 다시 꽂으면 그 모니터로)
+  const replace = () => { placeTrack(true); if (ctx.settings && ctx.settings.isOpen()) ctx.settings.displaysChanged(); };
+  screen.on('display-metrics-changed', replace);
+  screen.on('display-added', replace);
+  screen.on('display-removed', replace);
 
   // Ctrl+Shift+Q 로 종료 (Caps Lock 상태와 상관없음)
   globalShortcut.register('Control+Shift+Q', quitApp);

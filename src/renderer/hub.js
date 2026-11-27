@@ -463,6 +463,20 @@
   let autoOn = init.autostart.on;
   let backups = null;
   let picked = null;
+  let displays = init.displays || [];
+  api.on('settings:displays', (list) => { displays = list || []; if (tab === 'widget') render(); });
+
+  // 지금 고른 모니터 (main의 pickDisplay와 같은 순서로 맞춰 봄: 번호+이름 → 이름 → 위치 → 주 모니터)
+  function currentDisplay() {
+    const primary = displays.find((d) => d.primary) || displays[0] || null;
+    const m = S.monitor;
+    if (!m) return primary;
+    const named = m.label ? displays.filter((d) => d.key.label === m.label) : [];
+    const at = (d) => d.key.x === m.x && d.key.y === m.y;
+    return displays.find((d) => d.key.id === m.id && (!m.label || d.key.label === m.label))
+      || (named.length === 1 ? named[0] : null)
+      || named.find(at) || displays.find(at) || displays.find((d) => d.key.id === m.id) || primary;
+  }
 
   async function renderWidget() {
     const sec = $('sec-widget');
@@ -475,6 +489,21 @@
     const on = el('button', { 'aria-pressed': String(S.float), text: '살짝 둥둥', onclick: () => { S.float = true; changed(true); render(); } });
     const off = el('button', { 'aria-pressed': String(!S.float), text: '멈춤', onclick: () => { S.float = false; changed(true); render(); } });
     const labels = el('button', { class: 'switch', role: 'switch', 'aria-checked': String(S.labels), 'aria-label': '캐릭터 위 진도율 표시', onclick: () => { S.labels = !S.labels; changed(true); render(); } });
+
+    // 표시할 모니터 (모니터가 2개 이상일 때만). 주 모니터를 고르면 "주 모니터 따라가기"(null)로 저장
+    let monitorRow = null;
+    if (displays.length > 1) {
+      const cur = currentDisplay();
+      const seg = el('div', { class: 'seg', role: 'group', 'aria-label': '표시할 모니터' },
+        ...displays.map((d) => el('button', {
+          'aria-pressed': String(d === cur), text: d.name, title: d.detail,
+          onclick: () => { S.monitor = d.primary ? null : d.key; changed(true); render(); },
+        })));
+      monitorRow = el('div', { class: 'row-between' },
+        el('span', null, el('span', { text: '표시할 모니터' }), el('div', { class: 'lead', text: cur ? cur.detail : '' })), seg);
+    } else if (S.monitor) {
+      monitorRow = el('div', { class: 'lead', text: '고른 모니터가 연결되어 있지 않아서 지금은 주 모니터에 보여요. 다시 연결하면 그 모니터로 옮겨 가요.' });
+    }
 
     // 자동 실행
     const auto = el('button', {
@@ -506,7 +535,8 @@
       el('div', { class: 'group' },
         el('div', { class: 'row-between' }, el('span', { text: '캐릭터 크기' }), el('span', { class: 'slider', style: 'display:flex;align-items:center;gap:10px' }, scale, val)),
         el('div', { class: 'row-between' }, el('span', { text: '움직임' }), el('div', { class: 'seg', role: 'group', 'aria-label': '움직임' }, on, off)),
-        el('div', { class: 'row-between' }, el('span', { text: '캐릭터 위 진도율 표시' }), labels)),
+        el('div', { class: 'row-between' }, el('span', { text: '캐릭터 위 진도율 표시' }), labels),
+        monitorRow),
       el('div', { class: 'sec-title' }, '프로그램', el('span', { class: 'now', text: '누르면 바로 적용' })),
       el('div', { class: 'group' },
         el('div', { class: 'row-between' }, el('span', null, el('b', { text: '자동 실행' }), el('div', { class: 'lead', text: init.autostart.supported ? 'Windows에 로그인하면 진도 위젯이 저절로 켜져요.' : '설치한 진도 위젯에서만 켜고 끌 수 있어요.' })), auto)),

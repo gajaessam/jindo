@@ -6,11 +6,13 @@
 //   classes: [{ src: 원래 반 번호 | null(새 반), name, custom_image, plan_id }],  // 화면에 보이는 순서
 //   plans:   [{ id, name, lessons }],          // 학년(계획)과 차시·활동
 //   reassign:{ 지운학년id: 옮겨갈학년id },
-//   scale, float, labels
+//   scale, float, labels,
+//   monitor: null | { id, label, x, y }       // 위젯을 띄울 모니터
 // }
 
 const { cloneData, planById, emptyMarks, MIN_CLASSES, MAX_CLASSES } = require('./data');
 const { applyEditedPlans, cleanPlans } = require('./plan-merge');
+const { normalizeMonitor } = require('./display-pick');
 
 function draftFromData(data) {
   return {
@@ -20,6 +22,7 @@ function draftFromData(data) {
     scale: data.character_scale,
     float: data.float_motion,
     labels: data.show_progress_labels,
+    monitor: data.monitor || null,
   };
 }
 
@@ -82,6 +85,7 @@ function applySettingsDraft(data, draft) {
   out.character_scale = clampScale(draft.scale);
   out.float_motion = Boolean(draft.float);
   out.show_progress_labels = Boolean(draft.labels);
+  if ('monitor' in draft) out.monitor = normalizeMonitor(draft.monitor);
   return out;
 }
 

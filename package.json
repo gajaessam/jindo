@@ -1,7 +1,7 @@
 {
   "name": "jindo-widget",
   "productName": "진도 위젯",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "반별 캐릭터가 수업 진도만큼 바탕 화면 위를 걸어가는 Windows 위젯",
   "author": "가정재연쌤 (@gajae_ssam)",
   "license": "UNLICENSED",
@@ -31,6 +31,7 @@
       "src/**",
       "docs/guide/**",
       "assets/icon.png",
+      "assets/icon.ico",
       "assets/fonts/**",
       "package.json",
       "!**/*.map"

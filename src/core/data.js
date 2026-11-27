@@ -8,6 +8,7 @@
 // 옛 형식(v0.2.x~v1.0.x의 plan 하나, 아주 옛날의 반별 lessons)도 읽어서 이 형식으로 바꿉니다.
 
 const crypto = require('crypto');
+const { normalizeMonitor } = require('./display-pick');
 
 const DEFAULT_ITEMS = [
   '여기에 활동을 적어 주세요',
@@ -89,6 +90,7 @@ function freshData() {
     float_motion: true, // 처음 설치하면 "살짝 둥둥"
     character_scale: 100,
     show_progress_labels: true,
+    monitor: null, // 듀얼 모니터일 때 위젯을 띄울 모니터 (null = 주 모니터)
   });
 }
 
@@ -213,6 +215,7 @@ function normalizeData(input) {
   data.show_progress_labels = Boolean(data.show_progress_labels ?? true);
   const scale = Number.parseInt(data.character_scale ?? 100, 10);
   data.character_scale = Number.isFinite(scale) ? Math.max(50, Math.min(150, scale)) : 100;
+  data.monitor = normalizeMonitor(data.monitor);
 
   return attachAllUids(data);
 }
